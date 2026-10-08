@@ -1,41 +1,99 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
-node_modules/
-
-# Expo
+# ==========================================
+# Expo & Metro Bundler
+# ==========================================
 .expo/
 dist/
 web-build/
-expo-env.d.ts
+*.expo/*
 
-# Native
-.kotlin/
-*.orig.*
+# Caches y logs de Expo / EAS
+*.apk
+*.aab
+*.ipa
+*.tar.gz
+eas-build-local-nodejs/
+
+# ==========================================
+# Node.js & Dependency Managers
+# ==========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# Lockfiles opcionales (descomenta el que NO uses si prefieres no subirlo)
+# package-lock.json
+# yarn.lock
+
+# ==========================================
+# Environment & Local Secrets
+# ==========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+*.pem
+*.keystore
 *.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
 
-# Metro
-.metro-health-check*
+# Archivos de credenciales locales de EAS/Apple
+credentials.json
+google-services.json
+GoogleService-Info.plist
 
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# ==========================================
+# Native Builds (Android / iOS)
+# ==========================================
+# Si usas Expo Go/EAS Build y generas android/ios con prebuild
+android/
+ios/
 
+# En caso de que sí mantengas la carpeta android/ en Git:
+# android/app/build/
+# android/.gradle/
+# android/local.properties
+
+# En caso de que sí mantengas la carpeta ios/ en Git:
+# ios/Pods/
+# ios/build/
+# ios/*.xcodeproj/project.xcworkspace/
+# ios/*.xcworkspace/
+
+# ==========================================
+# IDEs & System Files
+# ==========================================
 # macOS
 .DS_Store
-*.pem
+.AppleDouble
+.LSOverride
+Thumbs.db
 
-# local env files
-.env*.local
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
 
-# typescript
-*.tsbuildinfo
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+.gradle/
 
-# generated native folders
-/ios
-/android
+# Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
