@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Configuracion,
   configuracionInicial,
+  DiaSemana,
 } from '../../domain/models/Configuracion';
 
 const CONFIG_KEY = '@shopper/configuracion';
@@ -19,6 +20,13 @@ export type ThemeMode = 'system' | 'light' | 'dark';
  * ==============================
  */
 
+/**
+ * Recupera la configuración guardada.
+ *
+ * - Completa los valores que no existan con los valores iniciales.
+ * - Migra los montos del asegurado desde la configuración antigua.
+ * - Conserva las ventanas horarias personalizadas.
+ */
 export async function getConfiguracion(): Promise<Configuracion> {
   const value = await AsyncStorage.getItem(CONFIG_KEY);
 
@@ -26,12 +34,79 @@ export async function getConfiguracion(): Promise<Configuracion> {
     return configuracionInicial;
   }
 
-  return {
-    ...configuracionInicial,
-    ...JSON.parse(value),
-  };
+  try {
+    const guardada: Partial<Configuracion> & {
+      aseguradoLunesSabado?: number;
+      aseguradoDomingo?: number;
+    } = JSON.parse(value);
+
+    const dias: DiaSemana[] = [
+      'lunes',
+      'martes',
+      'miercoles',
+      'jueves',
+      'viernes',
+      'sabado',
+      'domingo',
+    ];
+
+    const aseguradoGuardado =
+      guardada.aseguradoPorDia ?? configuracionInicial.aseguradoPorDia;
+
+    const aseguradoPorDia: Configuracion['aseguradoPorDia'] = {
+      ...configuracionInicial.aseguradoPorDia,
+    };
+
+    for (const dia of dias) {
+      const valorInicial =
+        configuracionInicial.aseguradoPorDia[dia];
+
+      const valorGuardado = aseguradoGuardado[dia];
+
+      const montoAnterior =
+        dia === 'domingo'
+          ? guardada.aseguradoDomingo
+          : guardada.aseguradoLunesSabado;
+
+      aseguradoPorDia[dia] = {
+        monto:
+          typeof valorGuardado?.monto === 'number'
+            ? valorGuardado.monto
+            : typeof montoAnterior === 'number'
+              ? montoAnterior
+              : valorInicial.monto,
+
+        pedidosMinimos:
+          typeof valorGuardado?.pedidosMinimos === 'number'
+            ? valorGuardado.pedidosMinimos
+            : valorInicial.pedidosMinimos,
+      };
+    }
+
+    const ventanasHorarias =
+      Array.isArray(guardada.ventanasHorarias)
+        ? guardada.ventanasHorarias
+        : configuracionInicial.ventanasHorarias;
+
+    return {
+      ...configuracionInicial,
+      ...guardada,
+      aseguradoPorDia,
+      ventanasHorarias,
+    };
+  } catch (error) {
+    console.error(
+      'Error leyendo la configuración guardada:',
+      error,
+    );
+
+    return configuracionInicial;
+  }
 }
 
+/**
+ * Guarda la configuración actual.
+ */
 export async function saveConfiguracion(
   configuracion: Configuracion,
 ): Promise<void> {

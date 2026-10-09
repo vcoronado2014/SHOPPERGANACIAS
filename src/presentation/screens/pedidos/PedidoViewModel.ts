@@ -6,8 +6,15 @@ import {
 } from '../../../data/storage/appStorage';
 
 import {
+  DiaSemana,
+} from '../../../domain/models/Configuracion';
+
+import {
   obtenerDiaPorFecha,
   crearDia,
+  actualizarAseguradoAplicado,
+  obtenerDiaPorId,
+  actualizarConfiguracionAsegurado,
 } from '../../../data/database/repositories/diaRepository';
 
 import {
@@ -48,6 +55,77 @@ import {
   calcularDia,
   ResultadoDia,
 } from '../../../domain/calculators/diaCalculator';
+
+
+function obtenerDiaSemana(fecha: string): DiaSemana {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const fechaLocal = new Date(anio, mes - 1, dia);
+
+  const dias: DiaSemana[] = [
+    'domingo',
+    'lunes',
+    'martes',
+    'miercoles',
+    'jueves',
+    'viernes',
+    'sabado',
+  ];
+
+  return dias[fechaLocal.getDay()];
+}
+
+async function actualizarAseguradoDelDia(
+  db: SQLiteDatabase,
+  diaId: number,
+): Promise<void> {
+  const dia = await obtenerDiaPorId(db, diaId);
+
+  if (!dia) {
+    throw new Error('No se encontró el día para actualizar el asegurado.');
+  }
+
+  const pedidosActuales = await obtenerPedidosPorDia(db, diaId);
+
+  // Si no quedan pedidos, el asegurado aplicado debe ser cero.
+  const cumpleMinimo =
+    pedidosActuales.length > 0 &&
+    (
+      dia.pedidosMinimos === 0 ||
+      pedidosActuales.length >= dia.pedidosMinimos
+    );
+
+  const aseguradoAplicado =
+    dia.aseguradoBase > 0 && cumpleMinimo
+      ? dia.aseguradoBase
+      : 0;
+
+  await actualizarAseguradoAplicado(
+    db,
+    diaId,
+    aseguradoAplicado,
+  );
+}
+
+
+function calcularAseguradoAplicado(
+  controlarAsegurado: boolean,
+  aseguradoBase: number,
+  pedidosMinimos: number,
+  cantidadPedidos: number,
+): number {
+  if (!controlarAsegurado) {
+    return 0;
+  }
+
+  if (
+    pedidosMinimos > 0 &&
+    cantidadPedidos < pedidosMinimos
+  ) {
+    return 0;
+  }
+
+  return aseguradoBase;
+}
 
 export interface NuevoBonoPedido {
   descripcion: string;
@@ -192,6 +270,7 @@ export function usePedidoViewModel(
     [db],
   );
 
+
   const guardarPedido = useCallback(
     async (
       nuevoPedido: NuevoPedido,
@@ -244,9 +323,7 @@ export function usePedidoViewModel(
           };
         }
 
-        if (
-          nuevoPedido.cantidadSku <= 0
-        ) {
+        if (nuevoPedido.cantidadSku <= 0) {
           const mensaje =
             'Debe ingresar la cantidad de SKU.';
 
@@ -258,9 +335,7 @@ export function usePedidoViewModel(
           };
         }
 
-        if (
-          nuevoPedido.kilometros <= 0
-        ) {
+        if (nuevoPedido.kilometros <= 0) {
           const mensaje =
             'Debe ingresar los kilómetros.';
 
@@ -272,11 +347,10 @@ export function usePedidoViewModel(
           };
         }
 
-        const existe =
-          await existeNumeroOrden(
-            db,
-            numeroOrden,
-          );
+        const existe = await existeNumeroOrden(
+          db,
+          numeroOrden,
+        );
 
         if (existe) {
           const mensaje =
@@ -293,82 +367,121 @@ export function usePedidoViewModel(
         const configuracion =
           await getConfiguracion();
 
-        let dia =
-          await obtenerDiaPorFecha(
+        let dia = await obtenerDiaPorFecha(
+          db,
+          nuevoPedido.fecha,
+        );
+
+
+        // Si el día ya existe, pero no tiene pedidos,
+        // actualizamos el asegurado con la configuración vigente.
+        if (dia) {
+          const pedidosExistentes = await obtenerPedidosPorDia(
+            db,
+            dia.id,
+          );
+
+          if (pedidosExistentes.length === 0) {
+            const diaSemana = obtenerDiaSemana(nuevoPedido.fecha);
+
+            const aseguradoConfigurado =
+              configuracion.aseguradoPorDia[diaSemana];
+
+            const aseguradoBase = configuracion.controlarAsegurado
+              ? aseguradoConfigurado.monto
+              : 0;
+
+            const pedidosMinimos = configuracion.controlarAsegurado
+              ? aseguradoConfigurado.pedidosMinimos
+              : 0;
+
+            await actualizarConfiguracionAsegurado(
+              db,
+              dia.id,
+              aseguradoBase,
+              pedidosMinimos,
+            );
+          }
+        }
+
+
+        // Crear el día solamente si todavía no existe.
+        // Los días existentes conservan sus condiciones históricas.
+        if (!dia) {
+          const diaSemana = obtenerDiaSemana(
+            nuevoPedido.fecha,
+          );
+
+          const aseguradoConfigurado =
+            configuracion.aseguradoPorDia[diaSemana];
+
+          const aseguradoBase =
+            configuracion.controlarAsegurado
+              ? aseguradoConfigurado.monto
+              : 0;
+
+          const pedidosMinimos =
+            configuracion.controlarAsegurado
+              ? aseguradoConfigurado.pedidosMinimos
+              : 0;
+
+          const diaId = await crearDia(db, {
+            fecha: nuevoPedido.fecha,
+            aseguradoBase,
+            pedidosMinimos,
+            aseguradoAplicado: 0,
+            porcentajeBoletaAplicado:
+              configuracion.porcentajeBoleta,
+            createdAt: new Date().toISOString(),
+          });
+
+          dia = await obtenerDiaPorFecha(
             db,
             nuevoPedido.fecha,
           );
 
-        if (!dia) {
-          const domingo =
-            esDomingo(
-              nuevoPedido.fecha,
-            );
-
-          const aseguradoAplicado =
-            domingo
-              ? configuracion.aseguradoDomingo
-              : configuracion.aseguradoLunesSabado;
-
-          const diaId =
-            await crearDia(db, {
-              fecha: nuevoPedido.fecha,
-              aseguradoAplicado,
-              porcentajeBoletaAplicado:
-                configuracion.porcentajeBoleta,
-              createdAt:
-                new Date().toISOString(),
-            });
-
-          dia =
-            await obtenerDiaPorFecha(
-              db,
-              nuevoPedido.fecha,
-            );
-
-          if (
-            !dia ||
-            dia.id !== diaId
-          ) {
+          if (!dia || dia.id !== diaId) {
             throw new Error(
               'No fue posible crear el día.',
             );
           }
         }
 
-        const pedidoId =
-          await crearPedido(db, {
-            diaId: dia.id,
-            numeroOrden:
-              nuevoPedido.numeroOrden.trim(),
-            fecha: nuevoPedido.fecha,
-            ventanaInicio:
-              nuevoPedido.ventanaInicio,
-            ventanaFin:
-              nuevoPedido.ventanaFin,
-            cantidadSku:
-              nuevoPedido.cantidadSku,
-            kilometros:
-              nuevoPedido.kilometros,
-            pedidoBaseAplicado:
-              configuracion.pedidoBase,
-            valorSkuAplicado:
-              configuracion.valorBaseSku,
-            valorKmAplicado:
-              configuracion.valorCompensacionKm,
-            controlarCombustibleAplicado:
-              configuracion.controlarCombustible,
-            precioLitroBencinaAplicado:
-              configuracion.precioLitroBencina,
-            rendimientoKmLitroAplicado:
-              configuracion.rendimientoKmLitro,
-            createdAt:
-              new Date().toISOString(),
-          });
+        const pedidoId = await crearPedido(db, {
+          diaId: dia.id,
+          numeroOrden,
+          fecha: nuevoPedido.fecha,
+          ventanaInicio:
+            nuevoPedido.ventanaInicio,
+          ventanaFin:
+            nuevoPedido.ventanaFin,
+          cantidadSku:
+            nuevoPedido.cantidadSku,
+          kilometros:
+            nuevoPedido.kilometros,
+          pedidoBaseAplicado:
+            configuracion.pedidoBase,
+          valorSkuAplicado:
+            configuracion.valorBaseSku,
+          valorKmAplicado:
+            configuracion.valorCompensacionKm,
+          controlarCombustibleAplicado:
+            configuracion.controlarCombustible,
+          precioLitroBencinaAplicado:
+            configuracion.precioLitroBencina,
+          rendimientoKmLitroAplicado:
+            configuracion.rendimientoKmLitro,
+          createdAt:
+            new Date().toISOString(),
+        });
 
+        // Guardar los bonos asociados al pedido.
         for (const bono of nuevoPedido.bonos) {
+          const descripcion =
+            bono.descripcion.trim();
+
           if (
-            bono.descripcion.trim() === '' ||
+            descripcion === '' ||
             bono.monto <= 0
           ) {
             continue;
@@ -376,15 +489,19 @@ export function usePedidoViewModel(
 
           await crearBonoPedido(db, {
             pedidoId,
-            descripcion:
-              bono.descripcion.trim(),
+            descripcion,
             monto: bono.monto,
           });
         }
 
-        await cargarPedidos(
-          nuevoPedido.fecha,
-        );
+        // Volver a consultar el día y sus pedidos.
+        await actualizarAseguradoDelDia(db, dia.id);
+
+        await cargarPedidos(nuevoPedido.fecha);
+        return { ok: true };
+
+        // Actualizar el resumen y los pedidos de la pantalla.
+        await cargarPedidos(nuevoPedido.fecha);
 
         return {
           ok: true,
@@ -420,11 +537,11 @@ export function usePedidoViewModel(
         setLoading(true);
         setError(null);
 
-        const pedidoActual =
-          await obtenerPedidoPorId(
-            db,
-            pedidoId,
-          );
+        // 1. Obtener el pedido actual
+        const pedidoActual = await obtenerPedidoPorId(
+          db,
+          pedidoId,
+        );
 
         if (!pedidoActual) {
           const mensaje =
@@ -438,30 +555,46 @@ export function usePedidoViewModel(
           };
         }
 
+        // 2. Validar el número de orden
+        const numeroOrden =
+          nuevoPedido.numeroOrden.trim().toUpperCase();
+
+        if (!numeroOrden) {
+          const mensaje =
+            'Debe ingresar el número de orden.';
+
+          setError(mensaje);
+
+          return {
+            ok: false,
+            error: mensaje,
+          };
+        }
+
+        if (!/^[A-Z0-9]+$/.test(numeroOrden)) {
+          const mensaje =
+            'El número de orden solo puede contener letras y números.';
+
+          setError(mensaje);
+
+          return {
+            ok: false,
+            error: mensaje,
+          };
+        }
+
+        // 3. Actualizar el pedido conservando sus valores históricos
         await actualizarPedido(
           db,
           pedidoId,
           {
-            diaId:
-              pedidoActual.diaId,
-
-            numeroOrden:
-              nuevoPedido.numeroOrden.trim(),
-
-            fecha:
-              pedidoActual.fecha,
-
-            ventanaInicio:
-              nuevoPedido.ventanaInicio,
-
-            ventanaFin:
-              nuevoPedido.ventanaFin,
-
-            cantidadSku:
-              nuevoPedido.cantidadSku,
-
-            kilometros:
-              nuevoPedido.kilometros,
+            diaId: pedidoActual.diaId,
+            numeroOrden,
+            fecha: pedidoActual.fecha,
+            ventanaInicio: nuevoPedido.ventanaInicio,
+            ventanaFin: nuevoPedido.ventanaFin,
+            cantidadSku: nuevoPedido.cantidadSku,
+            kilometros: nuevoPedido.kilometros,
 
             pedidoBaseAplicado:
               pedidoActual.pedidoBaseAplicado,
@@ -481,37 +614,38 @@ export function usePedidoViewModel(
             rendimientoKmLitroAplicado:
               pedidoActual.rendimientoKmLitroAplicado,
 
-            createdAt:
-              pedidoActual.createdAt,
+            createdAt: pedidoActual.createdAt,
           },
         );
 
+        // 4. Reemplazar los bonos del pedido
         await eliminarBonosPedido(
           db,
           pedidoId,
         );
 
-        for (
-          const bono of nuevoPedido.bonos
-        ) {
-          if (
-            bono.descripcion.trim() === '' ||
-            bono.monto <= 0
-          ) {
+        for (const bono of nuevoPedido.bonos) {
+          const descripcion = bono.descripcion.trim();
+
+          if (descripcion === '' || bono.monto <= 0) {
             continue;
           }
 
           await crearBonoPedido(db, {
             pedidoId,
-            descripcion:
-              bono.descripcion.trim(),
+            descripcion,
             monto: bono.monto,
           });
         }
 
-        await cargarPedidos(
-          pedidoActual.fecha,
+        // 5. Recalcular el asegurado con la cantidad actual de pedidos
+        await actualizarAseguradoDelDia(
+          db,
+          pedidoActual.diaId,
         );
+
+        // 6. Recargar los datos del día
+        await cargarPedidos(pedidoActual.fecha);
 
         return {
           ok: true,
@@ -547,11 +681,36 @@ export function usePedidoViewModel(
         setLoading(true);
         setError(null);
 
+        // Obtener el pedido antes de eliminarlo
+        const pedido = await obtenerPedidoPorId(
+          db,
+          pedidoId,
+        );
+
+        if (!pedido) {
+          const mensaje = 'No se encontró el pedido.';
+
+          setError(mensaje);
+
+          return {
+            ok: false,
+            error: mensaje,
+          };
+        }
+
+        // Eliminar el pedido
         await eliminarPedido(
           db,
           pedidoId,
         );
 
+        // Recalcular el asegurado del día
+        await actualizarAseguradoDelDia(
+          db,
+          pedido.diaId,
+        );
+
+        // Actualizar los datos de la pantalla
         await cargarPedidos(fecha);
 
         return {
@@ -578,6 +737,8 @@ export function usePedidoViewModel(
     },
     [db, cargarPedidos],
   );
+
+
 
   const agregarBonoDia = useCallback(
     async (

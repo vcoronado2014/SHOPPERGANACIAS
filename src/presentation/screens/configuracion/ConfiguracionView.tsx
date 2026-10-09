@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { Configuracion } from '../../../domain/models/Configuracion';
+import { Configuracion, DiaSemana } from '../../../domain/models/Configuracion';
 
 import { useConfiguracionViewModel } from '../../screens/configuracion/ConfiguracionViewModel';
 
@@ -105,6 +105,43 @@ export default function ConfiguracionView() {
       };
     });
   };
+
+
+  const actualizarAseguradoDia = (
+    dia: DiaSemana,
+    campo: 'monto' | 'pedidosMinimos',
+    valor: string,
+  ) => {
+    const numeroIngresado =
+      valor.trim() === '' ? 0 : Number(valor);
+
+    const numero = Number.isFinite(numeroIngresado)
+      ? Math.max(0, numeroIngresado)
+      : 0;
+
+    const valorFinal =
+      campo === 'pedidosMinimos'
+        ? Math.floor(numero)
+        : numero;
+
+    setFormulario((actual) => {
+      if (!actual) {
+        return actual;
+      }
+
+      return {
+        ...actual,
+        aseguradoPorDia: {
+          ...actual.aseguradoPorDia,
+          [dia]: {
+            ...actual.aseguradoPorDia[dia],
+            [campo]: valorFinal,
+          },
+        },
+      };
+    });
+  };
+
 
   const actualizarVentana = (
     indice: number,
@@ -686,63 +723,170 @@ export default function ConfiguracionView() {
 
         <Text
           style={[
-            styles.label,
+            styles.description,
             {
-              color: theme.colors.text,
+              color: theme.colors.muted,
             },
           ]}
         >
-          Asegurado lunes a sábado
+          Configura el monto garantizado y la cantidad mínima
+          de pedidos necesarios para cada día.
         </Text>
 
-        <TextInput
-          style={[
-            styles.input,
-            {
-              color: theme.colors.text,
-              borderColor: theme.colors.border,
-              backgroundColor: theme.colors.background,
-            },
-          ]}
-          value={String(formulario.aseguradoLunesSabado)}
-          onChangeText={(value) =>
-            actualizarNumero('aseguradoLunesSabado', value)
-          }
-          keyboardType="numeric"
-        />
+        <View style={styles.switchRow}>
+          <View style={styles.switchTextContainer}>
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: theme.colors.text,
+                },
+              ]}
+            >
+              Controlar asegurado
+            </Text>
+
+            <Text
+              style={[
+                styles.description,
+                {
+                  color: theme.colors.muted,
+                },
+              ]}
+            >
+              Aplicar el asegurado según las condiciones de cada día.
+            </Text>
+          </View>
+
+          <Switch
+            value={formulario.controlarAsegurado}
+            onValueChange={(value) =>
+              actualizarBooleano('controlarAsegurado', value)
+            }
+            trackColor={{
+              false: theme.colors.border,
+              true: theme.colors.primary,
+            }}
+          />
+        </View>
+
+        {(
+          [
+            { clave: 'lunes', etiqueta: 'Lunes' },
+            { clave: 'martes', etiqueta: 'Martes' },
+            { clave: 'miercoles', etiqueta: 'Miércoles' },
+            { clave: 'jueves', etiqueta: 'Jueves' },
+            { clave: 'viernes', etiqueta: 'Viernes' },
+            { clave: 'sabado', etiqueta: 'Sábado' },
+            { clave: 'domingo', etiqueta: 'Domingo' },
+          ] as { clave: DiaSemana; etiqueta: string }[]
+        ).map(({ clave, etiqueta }) => {
+          const asegurado = formulario.aseguradoPorDia[clave];
+
+          return (
+            <View
+              key={clave}
+              style={{
+                marginTop: theme.spacing.md,
+                padding: theme.spacing.md,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                borderRadius: theme.radius.md,
+                opacity: formulario.controlarAsegurado ? 1 : 0.55,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.colors.text,
+                  fontWeight: '700',
+                  marginBottom: theme.spacing.sm,
+                }}
+              >
+                {etiqueta}
+              </Text>
+
+              <Text
+                style={[
+                  styles.label,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                Monto asegurado ($)
+              </Text>
+
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: theme.colors.text,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                value={String(asegurado.monto)}
+                onChangeText={(valor) =>
+                  actualizarAseguradoDia(clave, 'monto', valor)
+                }
+                keyboardType="numeric"
+                editable={formulario.controlarAsegurado}
+              />
+
+              <Text
+                style={[
+                  styles.label,
+                  {
+                    color: theme.colors.text,
+                  },
+                ]}
+              >
+                Pedidos mínimos
+              </Text>
+
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    color: theme.colors.text,
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.background,
+                  },
+                ]}
+                value={String(asegurado.pedidosMinimos)}
+                onChangeText={(valor) =>
+                  actualizarAseguradoDia(
+                    clave,
+                    'pedidosMinimos',
+                    valor,
+                  )
+                }
+                keyboardType="numeric"
+                editable={formulario.controlarAsegurado}
+              />
+
+              <Text
+                style={[
+                  styles.description,
+                  {
+                    color: theme.colors.muted,
+                    marginTop: theme.spacing.xs,
+                  },
+                ]}
+              >
+                Si el mínimo es 0, no se exige una cantidad mínima
+                específica de pedidos.
+              </Text>
+            </View>
+          );
+        })}
 
         <Text
           style={[
             styles.label,
             {
               color: theme.colors.text,
-            },
-          ]}
-        >
-          Asegurado domingo
-        </Text>
-
-        <TextInput
-          style={[
-            styles.input,
-            {
-              color: theme.colors.text,
-              borderColor: theme.colors.border,
-              backgroundColor: theme.colors.background,
-            },
-          ]}
-          value={String(formulario.aseguradoDomingo)}
-          onChangeText={(value) =>
-            actualizarNumero('aseguradoDomingo', value)
-          }
-          keyboardType="numeric"
-        />
-
-        <Text
-          style={[
-            styles.label,
-            {
-              color: theme.colors.text,
+              marginTop: theme.spacing.lg,
             },
           ]}
         >

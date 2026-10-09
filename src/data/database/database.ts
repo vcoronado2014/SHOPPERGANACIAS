@@ -1,5 +1,38 @@
 import { SQLiteDatabase } from 'expo-sqlite';
 
+async function migrarTablaDias(
+  db: SQLiteDatabase,
+): Promise<void> {
+  const columnas = await db.getAllAsync<{
+    name: string;
+  }>('PRAGMA table_info(dias)');
+
+  const nombres = new Set(
+    columnas.map((columna) => columna.name),
+  );
+
+  if (!nombres.has('asegurado_base')) {
+    await db.execAsync(`
+      ALTER TABLE dias
+      ADD COLUMN asegurado_base REAL NOT NULL DEFAULT 0;
+    `);
+
+    // Los registros antiguos conservan su
+    // asegurado conocido como valor histórico.
+    await db.execAsync(`
+      UPDATE dias
+      SET asegurado_base = asegurado_aplicado;
+    `);
+  }
+
+  if (!nombres.has('pedidos_minimos')) {
+    await db.execAsync(`
+      ALTER TABLE dias
+      ADD COLUMN pedidos_minimos INTEGER NOT NULL DEFAULT 0;
+    `);
+  }
+}
+
 export async function initializeDatabase(
   db: SQLiteDatabase,
 ): Promise<void> {
@@ -12,6 +45,9 @@ export async function initializeDatabase(
 
       asegurado_aplicado REAL NOT NULL,
       porcentaje_boleta_aplicado REAL NOT NULL,
+
+      asegurado_base REAL NOT NULL DEFAULT 0,
+      pedidos_minimos INTEGER NOT NULL DEFAULT 0,
 
       created_at TEXT NOT NULL
     );
@@ -86,4 +122,6 @@ export async function initializeDatabase(
     CREATE INDEX IF NOT EXISTS idx_bonos_dia
       ON bonos_dia(dia_id);
   `);
+
+  await migrarTablaDias(db);
 }

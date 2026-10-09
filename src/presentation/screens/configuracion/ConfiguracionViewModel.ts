@@ -12,6 +12,7 @@ import {
 import {
   Configuracion,
   VentanaHoraria,
+  DiaSemana,
 } from '../../../domain/models/Configuracion';
 
 export function useConfiguracionViewModel() {
@@ -177,6 +178,50 @@ export function useConfiguracionViewModel() {
       [],
     );
 
+  
+  const validarAsegurado = useCallback(
+    (
+      nuevaConfiguracion: Configuracion,
+    ): string | null => {
+      const dias: DiaSemana[] = [
+        'lunes',
+        'martes',
+        'miercoles',
+        'jueves',
+        'viernes',
+        'sabado',
+        'domingo',
+      ];
+
+      for (const dia of dias) {
+        const asegurado =
+          nuevaConfiguracion.aseguradoPorDia[dia];
+
+        if (!asegurado) {
+          return `Falta configurar el asegurado del día ${dia}.`;
+        }
+
+        if (
+          !Number.isFinite(asegurado.monto) ||
+          asegurado.monto < 0
+        ) {
+          return `El monto asegurado de ${dia} debe ser un número igual o mayor que cero.`;
+        }
+
+        if (
+          !Number.isInteger(asegurado.pedidosMinimos) ||
+          asegurado.pedidosMinimos < 0
+        ) {
+          return `Los pedidos mínimos de ${dia} deben ser un entero igual o mayor que cero.`;
+        }
+      }
+
+      return null;
+    },
+    [],
+  );
+
+
   /**
    * ==============================
    * CARGAR CONFIGURACIÓN
@@ -236,6 +281,14 @@ export function useConfiguracionViewModel() {
             return false;
           }
 
+          const errorAsegurado =
+            validarAsegurado(nuevaConfiguracion);
+
+          if (errorAsegurado) {
+            setError(errorAsegurado);
+            return false;
+          }
+
           await saveConfiguracion(
             nuevaConfiguracion,
           );
@@ -260,7 +313,10 @@ export function useConfiguracionViewModel() {
           setSaving(false);
         }
       },
-      [validarVentanasHorarias],
+      [
+        validarVentanasHorarias,
+        validarAsegurado
+      ],
     );
 
   /**
