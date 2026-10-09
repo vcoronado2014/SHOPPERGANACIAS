@@ -94,11 +94,13 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
+    textAlign: 'center',
   },
 
   statValue: {
     fontSize: 17,
     fontWeight: '800',
+    textAlign: 'center',
   },
 
   averageCard: {

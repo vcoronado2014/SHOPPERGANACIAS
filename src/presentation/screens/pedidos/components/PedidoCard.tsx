@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 import {
@@ -6,11 +7,11 @@ import {
   View,
 } from 'react-native';
 
-import { styles } from '../PedidosStyles';
-import {
-  useTheme,
-} from '../../../theme/ThemeProvider';
+import { useTheme } from '../../../theme/ThemeProvider';
 
+import { styles } from './PedidoCardStyles';
+
+// Conserva aquí el import actual de Pedido de tu proyecto.
 interface Pedido {
   id: number;
   numeroOrden: string;
@@ -36,12 +37,8 @@ interface Props {
   onEliminar: (pedidoId: number) => void;
 }
 
-const formatearPesos = (
-  valor: number,
-): string => {
-  return `$${Math.round(
-    valor,
-  ).toLocaleString('es-CL')}`;
+const formatearPesos = (valor: number): string => {
+  return `$${Math.round(valor).toLocaleString('es-CL')}`;
 };
 
 export default function PedidoCard({
@@ -51,129 +48,195 @@ export default function PedidoCard({
   onEliminar,
 }: Props) {
   const theme = useTheme();
+
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderInfo}>
-          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      {/* Encabezado: orden y líquido estimado */}
+      <View style={styles.header}>
+        <View style={styles.headerInfo}>
+          <Text
+            style={[
+              styles.orderTitle,
+              { color: theme.colors.text },
+            ]}
+            numberOfLines={1}
+          >
             Orden {pedido.numeroOrden}
           </Text>
 
-          <Text style={[styles.cardSubtitle, { color: theme.colors.text }]}>
-            {pedido.ventanaInicio} -{' '}
-            {pedido.ventanaFin}
+          <Text
+            style={[
+              styles.operationalInfo,
+              { color: theme.colors.muted },
+            ]}
+            numberOfLines={1}
+          >
+            {pedido.ventanaInicio} - {pedido.ventanaFin}
+            {'  ·  '}
+            {pedido.cantidadSku} SKU
+            {'  ·  '}
+            {pedido.kilometros} km
           </Text>
         </View>
 
-        <Text style={[styles.cardAmount, { color: theme.colors.text }]}>
-          {formatearPesos(
-            resultado.liquidoEstimado,
-          )}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          Pedido base
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {formatearPesos(
-            pedido.pedidoBaseAplicado,
-          )}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          SKU
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {pedido.cantidadSku}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          Kilómetros
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {pedido.kilometros}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          Bonos
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {formatearPesos(
-            resultado.totalBonos,
-          )}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          Bruto
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {formatearPesos(
-            resultado.bruto,
-          )}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          Combustible
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {formatearPesos(
-            resultado.combustible,
-          )}
-        </Text>
-      </View>
-
-      <View style={styles.cardRow}>
-        <Text style={[styles.cardLabel, { color: theme.colors.text }]}>
-          Boleta
-        </Text>
-
-        <Text style={[styles.cardValue, { color: theme.colors.text }]}>
-          {formatearPesos(
-            resultado.boleta,
-          )}
-        </Text>
-      </View>
-
-      <View style={styles.cardActions}>
-        <Pressable
-          style={styles.editButton}
-          onPress={() =>
-            onEditar(pedido.id)
-          }
-        >
-          <Text style={styles.editText}>
-            Editar
+        <View style={styles.liquidContainer}>
+          <Text
+            style={[
+              styles.liquidAmount,
+              { color: theme.colors.primary },
+            ]}
+          >
+            {formatearPesos(resultado.liquidoEstimado)}
           </Text>
-        </Pressable>
 
-        <Pressable
-          style={styles.deleteButton}
-          onPress={() =>
-            onEliminar(pedido.id)
-          }
-        >
-          <Text style={styles.deleteText}>
-            Eliminar
+          <Text
+            style={[
+              styles.liquidLabel,
+              { color: theme.colors.muted },
+            ]}
+          >
+            Líquido estimado
           </Text>
-        </Pressable>
+        </View>
+      </View>
+
+      {/* Información económica */}
+      <View
+        style={[
+          styles.economicSummary,
+          { borderTopColor: theme.colors.border },
+        ]}
+      >
+        <View style={styles.economicItem}>
+          <Text
+            style={[
+              styles.economicLabel,
+              { color: theme.colors.muted },
+            ]}
+          >
+            Bruto
+          </Text>
+
+          <Text
+            style={[
+              styles.economicValue,
+              { color: theme.colors.text },
+            ]}
+          >
+            {formatearPesos(resultado.bruto)}
+          </Text>
+        </View>
+
+        <View style={styles.economicItem}>
+          <Text
+            style={[
+              styles.economicLabel,
+              { color: theme.colors.muted },
+            ]}
+          >
+            Bonos
+          </Text>
+
+          <Text
+            style={[
+              styles.economicValue,
+              { color: theme.colors.text },
+            ]}
+          >
+            {formatearPesos(resultado.totalBonos)}
+          </Text>
+        </View>
+
+        <View style={styles.economicItem}>
+          <Text
+            style={[
+              styles.economicLabel,
+              { color: theme.colors.muted },
+            ]}
+          >
+            Combustible
+          </Text>
+
+          <Text
+            style={[
+              styles.economicValue,
+              { color: theme.colors.text },
+            ]}
+          >
+            {formatearPesos(resultado.combustible)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Boleta y acciones */}
+      <View style={styles.footer}>
+        <Text
+          style={[
+            styles.receiptText,
+            { color: theme.colors.muted },
+          ]}
+        >
+          Boleta: {formatearPesos(resultado.boleta)}
+        </Text>
+
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Editar orden ${pedido.numeroOrden}`}
+            hitSlop={6}
+            onPress={() => onEditar(pedido.id)}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: pressed
+                  ? theme.colors.primarySoft
+                  : 'transparent',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.editText,
+                { color: theme.colors.primary },
+              ]}
+            >
+              Editar
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Eliminar orden ${pedido.numeroOrden}`}
+            hitSlop={6}
+            onPress={() => onEliminar(pedido.id)}
+            style={({ pressed }) => [
+              styles.actionButton,
+              {
+                backgroundColor: pressed
+                  ? theme.colors.danger
+                  : 'transparent',
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.deleteText,
+                { color: theme.colors.danger },
+              ]}
+            >
+              Eliminar
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );

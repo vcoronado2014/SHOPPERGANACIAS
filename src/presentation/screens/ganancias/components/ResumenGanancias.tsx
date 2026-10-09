@@ -12,6 +12,7 @@ import {
 import { useTheme } from '../../../theme/ThemeProvider';
 
 import { crearGananciasStyles } from '../GananciasStyles';
+import { getConfiguracion } from '../../../../data/storage/appStorage';
 
 interface ResumenGananciasProps {
   resultado: ResultadoSemanal | null;

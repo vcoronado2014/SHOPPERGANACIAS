@@ -45,6 +45,7 @@ export function crearGananciasStyles(
             fontWeight: '500',
             color: theme.colors.muted,
             marginBottom: theme.spacing.xs,
+            textAlign: 'center',
         },
 
         valorPrincipal: {
@@ -57,6 +58,7 @@ export function crearGananciasStyles(
             fontSize: 18,
             fontWeight: '700',
             color: theme.colors.text,
+            textAlign: 'center',
         },
 
         texto: {
