@@ -11,6 +11,7 @@ import {
   getAvatarUri,
   saveAvatarUri,
   setSessionActive,
+  marcarAvisoConfiguracionInicial,
 } from '../../../data/storage/appStorage';
 
 export interface ResultadoOperacion {
@@ -129,9 +130,7 @@ export function useLoginViewModel() {
 
       await setSessionActive();
 
-      return {
-        ok: true,
-      };
+      return { ok: true };
     } catch (e) {
       console.error(
         'Error iniciando sesión:',
@@ -238,6 +237,7 @@ export function useLoginViewModel() {
           );
         }
 
+        await marcarAvisoConfiguracionInicial();
         await setSessionActive();
 
         return { ok: true };

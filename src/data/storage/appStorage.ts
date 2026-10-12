@@ -11,6 +11,7 @@ const ONBOARDING_KEY = '@shopper/onboarding_completed';
 const THEME_KEY = '@shopper/theme';
 const AVATAR_KEY = '@shopper/avatar';
 const SESSION_KEY = '@shopper/session';
+const CONFIGURACION_INICIAL_AVISO_KEY = '@shopper/configuracion_inicial_aviso';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -228,4 +229,27 @@ export async function clearSession(): Promise<void> {
   await AsyncStorage.removeItem(
     SESSION_KEY,
   );
+}
+
+export async function marcarAvisoConfiguracionInicial(): Promise<void> {
+  await AsyncStorage.setItem(
+    CONFIGURACION_INICIAL_AVISO_KEY,
+    'pendiente',
+  );
+}
+
+export async function consumirAvisoConfiguracionInicial(): Promise<boolean> {
+  const estado = await AsyncStorage.getItem(
+    CONFIGURACION_INICIAL_AVISO_KEY,
+  );
+
+  if (estado !== 'pendiente') {
+    return false;
+  }
+
+  await AsyncStorage.removeItem(
+    CONFIGURACION_INICIAL_AVISO_KEY,
+  );
+
+  return true;
 }
